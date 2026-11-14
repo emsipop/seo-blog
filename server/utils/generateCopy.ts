@@ -20,6 +20,11 @@ const pct = (x: number) => `${Math.round(x * 100)}%`;
 // Plain-English facts, written by code. The LLM may only use numbers found here.
 export function buildFacts(stats: DatasetStats): string[] {
   const facts: string[] = [`The dataset lists ${stats.rowCount} entries.`];
+  for (const k of stats.constants) {
+    facts.push(
+      `Every entry has the same "${k.column}": ${k.value}. This defines the whole list, so state it accurately.`,
+    );
+  }
   const m = stats.metric;
   if (m) {
     const f = (v: number) => formatMoney(v, m.currency);
@@ -71,7 +76,11 @@ export function buildPrompt(
   return [
     `You write SEO blog copy for a UK business-data company. Topic: ${topic}.`,
     `Use ONLY the facts below for any number or ranking. Do not invent, estimate or round figures differently.`,
-    `Write in clear UK English. No markdown, no emojis, no bullet characters.`,
+    `Write in clear UK English for a reader, not a spreadsheet. No markdown, no emojis, no bullet characters.`,
+    `Vary sentence structure and never repeat the same phrasing pattern. Mention at most two figures per sentence.`,
+    `Describe exactly what the list contains, no more: do not imply it covers a whole sector unless the facts say so.`,
+    `Avoid filler such as "continues to attract", "our latest dataset" or "ecosystem". Write column names as natural English, for example "raised a combined £x" rather than "a Total Raised of £x".`,
+    `Each section covers ONE theme drawn from the facts (for example money, location, size or sector), and its heading names only that theme.`,
     ``,
     `FACTS:`,
     ...buildFacts(stats).map((f) => `- ${f}`),
@@ -80,7 +89,7 @@ export function buildPrompt(
       : "",
     ``,
     `Return JSON with exactly these keys:`,
-    `{"title": string (max 60 characters, includes the main keyword),`,
+    `{"title": string (max 60 characters, MUST start with "Top ${stats.rowCount}", then the subject and the main keyword, for example "Top ${stats.rowCount} Seed-Stage UK Fintech Start-ups"),`,
     ` "metaDescription": string (max 155 characters),`,
     ` "intro": string (2-3 sentences),`,
     ` "sections": [ {"heading": string, "body": string (2-4 sentences)} ] (exactly 3 sections)}`,

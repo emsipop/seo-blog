@@ -38,6 +38,7 @@ export interface DatasetStats {
   labelColumn: string | null;
   metric: MetricSummary | null;
   breakdowns: Breakdown[];
+  constants: { column: string; value: string }[]; // columns where every row has the same value
 }
 
 const median = (sorted: number[]) => {
@@ -140,5 +141,16 @@ export function computeStats(
       };
     });
 
-  return { rowCount: n, labelColumn, metric, breakdowns };
+  const constants = columns
+    .filter((c) => c.type === "constant" && c.distinct === 1)
+    .flatMap((c) => {
+      const value = rows
+        .map((r) => r[c.name])
+        .find((v) => v !== undefined && !isMissing(v));
+      return value !== undefined && value.trim().length <= 40
+        ? [{ column: c.name, value: value.trim() }]
+        : [];
+    });
+
+  return { rowCount: n, labelColumn, metric, breakdowns, constants };
 }
